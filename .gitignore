@@ -1,0 +1,17 @@
+# __pycache__/
+*.pyc
+*.pyo
+.venv/
+.DS_Store
+.env
+.env.*
+*.token
+token
+tokens
+*.pem
+id_ed25519
+id_rsa
+.netrc
+.credentials
+credentials.json
+**/.secrets/**

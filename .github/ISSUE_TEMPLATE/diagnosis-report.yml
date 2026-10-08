@@ -1,0 +1,78 @@
+name: Diagnosis report
+description: A full diagnosis run output for your LLM endpoint
+title: "[Diagnosis]"
+labels: [diagnosis]
+body:
+  - type: textarea
+    id: endpoint
+    attributes:
+      label: Endpoint and auto-detect
+      description: |
+        Output of `python llm_doctor.py detect --endpoint YOUR_URL`.
+        The bare `host:port` form is the right way to use this tool -
+        it auto-detects the backend.
+    validations:
+      required: true
+  - type: textarea
+    id: ping
+    attributes:
+      label: Ping result
+      description: |
+        Output of `python llm_doctor.py ping --endpoint YOUR_URL --ping-n 100`.
+        A "link is NOT the bottleneck" verdict means the problem is not
+        the network - don't chase a slow Wi-Fi link if TTFB grows with
+        context size.
+    validations:
+      required: true
+  - type: textarea
+    id: ctx
+    attributes:
+      label: context-scaling result
+      description: |
+        Output of `python llm_doctor.py context-scaling --endpoint YOUR_URL --base-ctx 4096`.
+        If TTFB climbs steeply with context size (R^2 > 0.9), this is a
+        KV-cache / pre-fill problem, not the network.
+    validations:
+      required: false
+  - type: textarea
+    id: reuse
+    attributes:
+      label: kv-reuse result
+      description: |
+        Output of `python llm_doctor.py kv-reuse --endpoint YOUR_URL --base-ctx 8192`
+        (or --base-ctx 2048 for a 16k-window model to keep the run under ~5 min).
+        A 224x cold-to-warm ratio means the KV cache IS reused and only the
+        first turn is slow. A flat high TTFB every turn means it is NOT -
+        pin num_ctx to the model's real context window.
+    validations:
+      required: false
+  - type: textarea
+    id: list
+    attributes:
+      label: model list
+      description: |
+        Output of `python llm_doctor.py list --endpoint YOUR_URL`.
+        Note the `ctx=` column. On MLX builds Ollama may not stamp
+        context_length; on GGUF a value of 262144 is the classic
+        oversized-context bug.
+    validations:
+      required: true
+  - type: textarea
+    id: client
+    attributes:
+      label: Client-side config
+      description: |
+        What does your client request? Show `num_ctx`, `context_length`, or
+        `max_tokens` values. Common bug: the client asks for a context window
+        8x what the model supports, and the server rebuilds the KV cache
+        every turn.
+    validations:
+      required: true
+  - type: textarea
+    id: redaction
+    attributes:
+      label: Redaction confirmation
+      description: |
+        Confirm any credentials / API keys / tokens are removed before pasting.
+    validations:
+      required: true

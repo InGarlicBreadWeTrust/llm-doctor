@@ -1,0 +1,4 @@
+# llm-doctor is stdlib-only. No third-party dependencies.
+# Python 3.9+.
+#   python3 llm_doctor.py detect --endpoint YOUR_ENDPOINT
+#   python3 -m unittest -v tests/test_llm_doctor.py
