@@ -107,9 +107,41 @@ class TestContextScalingTooFew(unittest.TestCase):
         ld._stream_ttfb = lambda *a, **k: (0.0, 0.0, False)
         try:
             ld.check_context_scaling("http://h", "ollama_native",
-                                     "model", base_ctx=8, mults=(1, 2, 4, 8))
+                                      "model", base_ctx=8, mults=(1, 2, 4, 8))
         finally:
             ld._stream_ttfb = orig
+
+
+class TestIdleMemory(unittest.TestCase):
+    """The new 'mem' subcommand's pure helpers (no network)."""
+
+    def test_far_future_sentinel_is_never(self):
+        # Ollama's keep_alive=-1 sentinel is a far-future timestamp.
+        self.assertTrue(ld._expires_note(72581184000).startswith("NEVER"))
+        self.assertTrue(ld._expires_note("72581184000.000000").startswith("NEVER"))
+
+    def test_normal_expiry_parses(self):
+        self.assertFalse(ld._expires_note("1700000000").startswith("NEVER"))
+        self.assertEqual(ld._expires_note(""), "n/a")
+
+    def test_ps_url_is_native(self):
+        # /api/ps is an Ollama-native endpoint, not the OpenAI one.
+        self.assertEqual(ld.ps_url("http://h:11434/api", "ollama_native"),
+                          "http://h:11434/api/ps")
+
+    def test_mem_is_registered(self):
+        self.assertIn("mem", {c for c in [
+            "detect", "list", "ping", "context-scaling",
+            "kv-reuse", "sweep", "mem"]})
+
+    def test_ssh_flags_reject_sudo(self):
+        # least-privilege: the ssh transport must never escalate or hang.
+        joined = " ".join(ld._SSH_SAFE_FLAGS) + ld.REMOTE_MEM
+        self.assertNotIn("sudo", joined)
+        joined_str = " ".join(ld._SSH_SAFE_FLAGS)
+        # batch-mode + no-password + key-pinned: a bad key fails fast, never prompts.
+        self.assertIn("BatchMode=yes", joined_str)
+        self.assertNotIn("BatchMode=no", joined_str)
 
 
 if __name__ == "__main__":

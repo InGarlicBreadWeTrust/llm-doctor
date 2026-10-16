@@ -60,10 +60,11 @@ No root, no SSH, no passwords. Just the HTTP endpoint your agent already talks t
 ## What it measures
 
 ```
-llm-doctor checks          # first-token latency as a function of context window
-llm-doctor ping            # round-trip time distribution, p50/p90/p99
-llm-doctor kv-reuse        # does the model actually reuse its KV cache?
-llm-doctor sweep           # all of the above, plus a plain-English verdict
+llm-doctor context-scaling  # first-token latency as a function of context window
+llm-doctor ping             # round-trip time distribution, p50/p90/p99
+llm-doctor kv-reuse         # does the model actually reuse its KV cache?
+llm-doctor sweep            # all of the above, plus a plain-English verdict
+llm-doctor mem              # idle-memory diagnostic (HTTP-only; --opt-in ssh, --fix)
 ```
 
 Each check runs a **real request** against your endpoint and prints:

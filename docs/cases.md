@@ -61,3 +61,52 @@ every turn.
 The "network crawl" was never the network. It was the engine recomputing
 an oversized KV cache on every turn. The tell is a TTFB that tracks
 num_ctx, not one that tracks Wi-Fi quality.
+
+## 2026-10-16 Apple M5 Pro, Ollama 0.34.4, qwen3.8:27b-mlx -- idle memory
+
+### Symptoms
+
+User reported ~10% of the 48GB unified memory stayed "used" even when the
+agent was not running. Activity Monitor looked low, but the machine felt
+thrashed and cold starts were slow.
+
+### Diagnosis
+
+`mem --endpoint 192.168.12.10:11434` (HTTP-only, no SSH, no password):
+
+1. **/api/ps** -- one model resident: qwen3.8:27b-mlx, 20.8G VRAM,
+   expires_at = 2319-01-25 -> keep_alive = "never unload".
+   This is the smoking gun: with `max_loaded=1` a single forever-pinned
+   model keeps ~21-32GB mapped and macOS shows most of it as
+   "reclaimable", so Activity Monitor under-reports it.
+
+2. No second model resident (the 29GB uncensored one sits on disk).
+
+### Root cause
+
+Ollama was launched once with `keep_alive` set to never, so the resident
+model was never evicted. macOS unified memory classifies the file-backed
+model as reclaimable, so the Activity Monitor number (10%) is lower than
+the true resident footprint, but the pinned model still costs RAM and
+forces warmups.
+
+### Fix
+
+1. Bound the idle residency: add `OLLAMA_KEEP_ALIVE=15m` to
+   `~/.ollama.env` and restart the Ollama service (one-time warmup cost).
+2. To reclaim immediately over HTTP (no SSH):
+   `curl -s http://192.168.12.10:11434/api/generate -d '{"model":"qwen3.8:27b-mlx","keep_alive":0}'`
+   -- safe only when the agent is idle.
+3. `--ssh --fix` is opt-in for OS-level view (vm_stat / memory_pressure)
+   only; diagnosis itself needs no SSH and no password.
+
+### Result
+
+`mem` prints the resident model, the keep_alive sentinel, the real
+VRAM footprint, and a copy-paste remediation -- all over plain HTTP.
+
+### Lesson
+
+"Used when idle" is usually not a leak. It is one model pinned forever by
+keep_alive that macOS hides as reclaimable. Ollama's `/api/ps` exposes it
+with zero credentials; SSH is only needed for the OS-level view.
